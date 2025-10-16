@@ -2,21 +2,18 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
 from bson.objectid import ObjectId
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import os
 from dateutil import parser as dateparser
 import csv
 from io import StringIO
 from dotenv import load_dotenv
 load_dotenv()
-import certifi
+MONGO_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
+DB_NAME = os.environ.get("MONGODB_DB", "expense-manager")
 
-
-uri = "mongodb+srv://vinitshah6315:Syncmaster290204@expense-manager.okswoyl.mongodb.net/?retryWrites=true&w=majority&appName=expense-manager"
-
-client = MongoClient(uri, tls=True, tlsCAFile=certifi.where())
-db = client["expense-manager"]
-
+client = MongoClient(MONGO_URI)
+db = client[DB_NAME]
 expenses = db["transactions"]
 incomes = db["incomes"]
 
@@ -57,50 +54,29 @@ def set_income():
     return jsonify({"ok": True})
 
 @app.post("/expenses")
-
 def add_expense():
-
     data = request.get_json(force=True) or {}
-
     date_str = data.get("date")
-
     if date_str:
-
         expense_date = parse_iso(date_str)
-
         if not expense_date:
-
             expense_date = datetime.now(timezone.utc)
-
     else:
-
         expense_date = datetime.now(timezone.utc)
-
     
-
     doc = {
-
         "amount": float(data.get("amount", 0)),
-
         "category": data.get("category") or "Other",
-
         "payment_mode": data.get("payment_mode") or "Cash",
-
         "tags": data.get("tags") or [],
-
         "remarks": data.get("remarks") or "",
-
         "type": data.get("type") or "expense",
-
         "date": expense_date,
-
     }
-
     res = expenses.insert_one(doc)
-
     doc["_id"] = str(res.inserted_id)
-
     return jsonify(doc), 201
+
 @app.get("/expenses")
 def list_expenses():
     limit = int(request.args.get("limit", 20))
@@ -303,5 +279,68 @@ def analytics_timeseries():
     items = [{"date": r["_id"], "total": float(r["total"])} for r in rows]
     return jsonify(items)
 
+@app.get("/analytics/category-trend")
+def category_trend():
+    category = request.args.get("category", "")
+    trend_type = request.args.get("type", "daily")  # daily, monthly, yearly
+    
+    if not category:
+        return jsonify({"error": "Category is required"}), 400
+    
+    now = datetime.now(timezone.utc)
+    
+    if trend_type == "daily":
+        # Last 30 days daily breakdown
+        start_date = now - timedelta(days=30)
+        pipeline = [
+            {"$match": {
+                "category": category,
+                "type": {"$ne": "investment"},
+                "date": {"$gte": start_date}
+            }},
+            {"$project": {
+                "amount": 1,
+                "day": {"$dateToString": {"format": "%Y-%m-%d", "date": "$date"}}
+            }},
+            {"$group": {"_id": "$day", "total": {"$sum": "$amount"}}},
+            {"$sort": {"_id": 1}},
+        ]
+    elif trend_type == "monthly":
+        # Last 12 months month-on-month
+        start_date = now - timedelta(days=365)
+        pipeline = [
+            {"$match": {
+                "category": category,
+                "type": {"$ne": "investment"},
+                "date": {"$gte": start_date}
+            }},
+            {"$project": {
+                "amount": 1,
+                "month": {"$dateToString": {"format": "%Y-%m", "date": "$date"}}
+            }},
+            {"$group": {"_id": "$month", "total": {"$sum": "$amount"}}},
+            {"$sort": {"_id": 1}},
+        ]
+    else:  # yearly
+        # Last 5 years year-on-year
+        start_date = now - timedelta(days=365*5)
+        pipeline = [
+            {"$match": {
+                "category": category,
+                "type": {"$ne": "investment"},
+                "date": {"$gte": start_date}
+            }},
+            {"$project": {
+                "amount": 1,
+                "year": {"$dateToString": {"format": "%Y", "date": "$date"}}
+            }},
+            {"$group": {"_id": "$year", "total": {"$sum": "$amount"}}},
+            {"$sort": {"_id": 1}},
+        ]
+    
+    rows = list(expenses.aggregate(pipeline))
+    items = [{"label": r["_id"], "amount": float(r["total"])} for r in rows]
+    return jsonify(items)
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5001")))

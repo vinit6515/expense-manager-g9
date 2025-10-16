@@ -4,26 +4,14 @@ import useSWR from "swr"
 import { API_BASE, swrFetcher, buildQuery } from "@/lib/api"
 import type { AnalyticsBreakdown, AnalyticsTimeseriesPoint } from "@/lib/types"
 import { useMemo, useState } from "react"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { ChartContainer, ChartTooltip } from "@/components/ui/chart"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  BarChart,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Bar,
-  LineChart,
-  Line,
-  Legend,
-} from "recharts"
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, XAxis, YAxis, CartesianGrid, Bar, Legend } from "recharts"
 import { Skeleton } from "@/components/ui/skeleton"
+import { CategoryTrendChart } from "./category-trend-chart"
 
-// Direct color values instead of CSS variables
+// Enhanced color palette
 const COLORS = [
   "#3b82f6", // Blue
   "#10b981", // Emerald
@@ -36,12 +24,6 @@ const COLORS = [
   "#ec4899", // Pink
   "#6366f1", // Indigo
 ]
-
-// Gradient colors for line chart
-const LINE_GRADIENT = {
-  start: "#3b82f6",
-  end: "#10b981",
-}
 
 type RangeKey = "30d" | "90d" | "mtd" | "ytd"
 
@@ -67,34 +49,34 @@ function getRangeDates(key: RangeKey) {
 export function AnalyticsCharts() {
   const [range, setRange] = useState<RangeKey>("30d")
   const [showAllTags, setShowAllTags] = useState(false)
+
   const { start, end } = useMemo(() => getRangeDates(range), [range])
+
   const analyticsKey = `${API_BASE}/analytics?${buildQuery({ start, end })}`
   const seriesKey = `${API_BASE}/analytics/timeseries?${buildQuery({ start, end })}`
+
   const { data: breakdown, isLoading: loadingBreakdown } = useSWR<AnalyticsBreakdown>(analyticsKey, swrFetcher, {
     refreshInterval: 12000,
   })
   const { data: series, isLoading: loadingSeries } = useSWR<AnalyticsTimeseriesPoint[]>(seriesKey, swrFetcher, {
     refreshInterval: 12000,
   })
+
   const isLoading = loadingBreakdown || loadingSeries
+
   const byCategory = breakdown?.byCategory ?? []
   const byPaymentMode = breakdown?.byPaymentMode ?? []
   const byTagRaw = breakdown?.byTag ?? []
   const byTag = showAllTags ? byTagRaw : byTagRaw.slice(0, 10)
+
   const totalCategory = byCategory.reduce((s, x) => s + (x.total || 0), 0)
   const totalPaymentMode = byPaymentMode.reduce((s, x) => s + (x.total || 0), 0)
   const totalTags = byTag.reduce((s, x) => s + (x.total || 0), 0)
 
-  // Custom label formatter for pie chart
-  const renderCustomizedLabel = ({ name, total }: { name: string; total: number }) => {
-    const pct = totalCategory ? Math.round((total / totalCategory) * 100) : 0
-    return `${name}: ${pct}%`
-  }
-
   return (
     <div className="space-y-6">
       {/* Time Range Filter */}
-      <Card className="bg-gradient-to-r from-blue-50 to-emerald-50 border-blue-200 shadow-sm">
+      <Card className="bg-gradient-to-r from-blue-50 to-emerald-50 border-blue-200 shadow-lg">
         <CardContent className="pt-6">
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-sm font-semibold text-gray-700">Time Range:</span>
@@ -122,67 +104,9 @@ export function AnalyticsCharts() {
         </CardContent>
       </Card>
 
-      {/* Spending Trend Chart */}
-      <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-blue-50">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">
-            Spending Trend
-          </CardTitle>
-          <p className="text-sm text-gray-500 mt-1">Daily expense breakdown over selected period</p>
-        </CardHeader>
-        <CardContent className="pt-2">
-          {isLoading ? (
-            <Skeleton className="h-[200px] w-full rounded-xl" />
-          ) : (
-            <ChartContainer config={{}} className="h-[200px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={series || []} margin={{ top: 5, right: 15, left: 5, bottom: 10 }} >
-                  <defs>
-                    <linearGradient id="lineGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={LINE_GRADIENT.start} stopOpacity={0.8}/>
-                      <stop offset="100%" stopColor={LINE_GRADIENT.end} stopOpacity={0.3}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid 
-                    strokeDasharray="2 2"
-                    stroke="#e5e7eb" 
-                    opacity={0.5}
-                  />
-                  <XAxis 
-                    dataKey="date" 
-                    stroke="#6b7280"
-                    fontSize={10}
-                    tickMargin={10}
-                  />
-                  <YAxis 
-                    stroke="#6b7280"
-                    fontSize={10}
-                    tickMargin={10}
-                    tickFormatter={(value) => `₹${value}`}
-                  />
-                  <ChartTooltip 
-                    content={<ChartTooltipContent />} 
-                    cursor={{ 
-                      stroke: "#6b7280", 
-                      strokeDasharray: "2 2",
-                      strokeOpacity: 0.3 
-                    }} 
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="total"
-                    stroke="url(#lineGradient)"
-                    strokeWidth={3}
-                    dot={{ fill: "#3b82f6", strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6, fill: "#3b82f6" }}
-                    isAnimationActive={true}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          )}
-        </CardContent>
-      </Card>
+              
+      {/* Category Trend Chart */}
+      <CategoryTrendChart />
 
       {/* Three Column Grid */}
       <div className="grid gap-6 lg:grid-cols-3">
@@ -193,23 +117,23 @@ export function AnalyticsCharts() {
               <div className="w-3 h-3 rounded-full bg-blue-500" />
               Spending by Category
             </CardTitle>
-            <p className="text-sm text-gray-500">Total: ₹{totalCategory.toFixed(2)}</p>
+            <p className="text-sm text-gray-500">Total: <span className="font-semibold text-blue-600">₹{totalCategory.toFixed(2)}</span></p>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <Skeleton className="h-[300px] w-full rounded-xl" />
+              <Skeleton className="h-[320px] w-full rounded-xl" />
             ) : byCategory.length > 0 ? (
-              <ChartContainer config={{}} className="h-[300px] w-full">
+              <ChartContainer config={{}} className="h-[320px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={byCategory}
                       dataKey="total"
                       nameKey="name"
-                      innerRadius={60}
-                      outerRadius={100}
+                      innerRadius={70}
+                      outerRadius={110}
                       paddingAngle={2}
-                      label={renderCustomizedLabel}
+                      
                       labelLine={false}
                     >
                       {byCategory.map((_, i) => (
@@ -249,7 +173,7 @@ export function AnalyticsCharts() {
                 </ResponsiveContainer>
               </ChartContainer>
             ) : (
-              <div className="h-[300px] flex items-center justify-center text-gray-500 border-2 border-dashed border-gray-300 rounded-xl">
+              <div className="h-[320px] flex items-center justify-center text-gray-500 border-2 border-dashed border-gray-300 rounded-xl">
                 No category data available
               </div>
             )}
@@ -263,24 +187,20 @@ export function AnalyticsCharts() {
               <div className="w-3 h-3 rounded-full bg-emerald-500" />
               Spending by Payment Mode
             </CardTitle>
-            <p className="text-sm text-gray-500">Total: ₹{totalPaymentMode.toFixed(2)}</p>
+            <p className="text-sm text-gray-500">Total: <span className="font-semibold text-emerald-600">₹{totalPaymentMode.toFixed(2)}</span></p>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <Skeleton className="h-[300px] w-full rounded-xl" />
+              <Skeleton className="h-[320px] w-full rounded-xl" />
             ) : byPaymentMode.length > 0 ? (
-              <ChartContainer config={{}} className="h-[300px] w-full">
+              <ChartContainer config={{}} className="h-[320px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart 
-                    data={byPaymentMode} 
+                    data={byPaymentMode}
                     margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-                    barSize={40}
+                    barSize={50}
                   >
-                    <CartesianGrid 
-                      strokeDasharray="3 3" 
-                      stroke="#e5e7eb" 
-                      opacity={0.5}
-                    />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.5} />
                     <XAxis 
                       dataKey="name" 
                       stroke="#6b7280"
@@ -321,7 +241,7 @@ export function AnalyticsCharts() {
                 </ResponsiveContainer>
               </ChartContainer>
             ) : (
-              <div className="h-[300px] flex items-center justify-center text-gray-500 border-2 border-dashed border-gray-300 rounded-xl">
+              <div className="h-[320px] flex items-center justify-center text-gray-500 border-2 border-dashed border-gray-300 rounded-xl">
                 No payment mode data available
               </div>
             )}
@@ -336,7 +256,7 @@ export function AnalyticsCharts() {
                 <div className="w-3 h-3 rounded-full bg-amber-500" />
                 Spending by Tags
               </CardTitle>
-              <p className="text-sm text-gray-500">Total: ₹{totalTags.toFixed(2)}</p>
+              <p className="text-sm text-gray-500">Total: <span className="font-semibold text-amber-600">₹{totalTags.toFixed(2)}</span></p>
             </div>
             {byTagRaw.length > 10 && (
               <Button
@@ -352,20 +272,16 @@ export function AnalyticsCharts() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <Skeleton className="h-[300px] w-full rounded-xl" />
+              <Skeleton className="h-[320px] w-full rounded-xl" />
             ) : byTag.length > 0 ? (
-              <ChartContainer config={{}} className="h-[300px] w-full">
+              <ChartContainer config={{}} className="h-[320px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart 
                     data={byTag}
                     margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                    barSize={30}
+                    barSize={35}
                   >
-                    <CartesianGrid 
-                      strokeDasharray="3 3" 
-                      stroke="#e5e7eb" 
-                      opacity={0.5}
-                    />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.5} />
                     <XAxis
                       dataKey="name"
                       stroke="#6b7280"
@@ -406,7 +322,7 @@ export function AnalyticsCharts() {
                 </ResponsiveContainer>
               </ChartContainer>
             ) : (
-              <div className="h-[300px] flex items-center justify-center text-gray-500 border-2 border-dashed border-gray-300 rounded-xl">
+              <div className="h-[320px] flex items-center justify-center text-gray-500 border-2 border-dashed border-gray-300 rounded-xl">
                 No tag data available
               </div>
             )}
