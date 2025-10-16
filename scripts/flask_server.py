@@ -57,21 +57,50 @@ def set_income():
     return jsonify({"ok": True})
 
 @app.post("/expenses")
-def add_expense():
-    data = request.get_json(force=True) or {}
-    doc = {
-        "amount": float(data.get("amount", 0)),
-        "category": data.get("category") or "Other",
-        "payment_mode": data.get("payment_mode") or "Cash",
-        "tags": data.get("tags") or [],
-        "remarks": data.get("remarks") or "",
-        "type": data.get("type") or "expense",
-        "date": datetime.now(timezone.utc),
-    }
-    res = expenses.insert_one(doc)
-    doc["_id"] = str(res.inserted_id)
-    return jsonify(doc), 201
 
+def add_expense():
+
+    data = request.get_json(force=True) or {}
+
+    date_str = data.get("date")
+
+    if date_str:
+
+        expense_date = parse_iso(date_str)
+
+        if not expense_date:
+
+            expense_date = datetime.now(timezone.utc)
+
+    else:
+
+        expense_date = datetime.now(timezone.utc)
+
+    
+
+    doc = {
+
+        "amount": float(data.get("amount", 0)),
+
+        "category": data.get("category") or "Other",
+
+        "payment_mode": data.get("payment_mode") or "Cash",
+
+        "tags": data.get("tags") or [],
+
+        "remarks": data.get("remarks") or "",
+
+        "type": data.get("type") or "expense",
+
+        "date": expense_date,
+
+    }
+
+    res = expenses.insert_one(doc)
+
+    doc["_id"] = str(res.inserted_id)
+
+    return jsonify(doc), 201
 @app.get("/expenses")
 def list_expenses():
     limit = int(request.args.get("limit", 20))

@@ -24,7 +24,6 @@ const CATEGORIES = ["Transportation"
   , "Family & Dependents"
   , "Official"
   , "Credit Card Bills"]
-
 const PAYMENT_MODES = ["Cash", "UPI", "Credit Card", "Debit Card", "Net Banking"]
 
 export function ExpenseForm() {
@@ -34,6 +33,7 @@ export function ExpenseForm() {
   const [tagInput, setTagInput] = useState<string>("")
   const [tags, setTags] = useState<string[]>([])
   const [remarks, setRemarks] = useState<string>("")
+  const [date, setDate] = useState<string>("")
 
   function addTag() {
     const t = tagInput.trim()
@@ -55,6 +55,7 @@ export function ExpenseForm() {
       tags,
       remarks,
       type: category === "Investment" ? "investment" : "expense",
+      ...(date && { date: new Date(date).toISOString() }),
     }
     await api("/expenses", {
       method: "POST",
@@ -65,6 +66,7 @@ export function ExpenseForm() {
     setPayment("")
     setTags([])
     setRemarks("")
+    setDate("")
     // refresh stats and recent list
     mutate("/stats")
     mutate("/expenses?limit=10")
@@ -118,6 +120,10 @@ export function ExpenseForm() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm">Date (Optional)</label>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             <div className="grid gap-2">
               <label className="text-sm">Tags</label>
