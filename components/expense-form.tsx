@@ -10,7 +10,20 @@ import { Input } from "@/components/ui/input"
 import { api } from "@/lib/api"
 import type { Expense } from "@/lib/types"
 
-const CATEGORIES = ["Groceries", "Bills & Utilities", "Transport", "Entertainment", "Healthcare", "Investment", "Other"]
+const CATEGORIES = ["Transportation"
+  , "Groceries"
+  , "Food & Dining"
+  , "Personal Care"
+  , "Health & Wellness"
+  , "Entertainment & Leisure"
+  , "Shopping"
+  , "Investments"
+  , "Travel"
+  , "Utilities"
+  , "Subscriptions"
+  , "Family & Dependents"
+  , "Official"
+  , "Credit Card Bills"]
 
 const PAYMENT_MODES = ["Cash", "UPI", "Credit Card", "Debit Card", "Net Banking"]
 
