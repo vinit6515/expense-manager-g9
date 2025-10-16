@@ -8,8 +8,8 @@ from dateutil import parser as dateparser
 import csv
 from io import StringIO
 
-MONGO_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
-DB_NAME = os.environ.get("MONGODB_DB", "expense_manager")
+MONGO_URI = os.environ.get("MONGODB_URI", "mongodb+srv://vinitshah6315:Syncmaster290204@expense-manager.okswoyl.mongodb.net/?retryWrites=true&w=majority&appName=expense-manager")
+DB_NAME = os.environ.get("MONGODB_DB", "expense-manager")
 
 client = MongoClient(MONGO_URI)
 db = client[DB_NAME]
@@ -234,4 +234,4 @@ def analytics_timeseries():
     return jsonify(items)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5001")))
