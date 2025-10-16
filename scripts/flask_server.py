@@ -8,8 +8,8 @@ from dateutil import parser as dateparser
 import csv
 from io import StringIO
 
-MONGO_URI = os.environ.get("MONGODB_URI", "mongodb+srv://vinitshah6315:Syncmaster290204@expense-manager.okswoyl.mongodb.net/?retryWrites=true&w=majority&appName=expense-manager")
-DB_NAME = os.environ.get("MONGODB_DB", "expense-manager")
+MONGO_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
+DB_NAME = os.environ.get("MONGODB_DB", "expense_manager")
 
 client = MongoClient(MONGO_URI)
 db = client[DB_NAME]
@@ -78,6 +78,38 @@ def list_expenses():
         items.append(x)
     return jsonify({"items": items})
 
+@app.put("/expenses/<expense_id>")
+def update_expense(expense_id: str):
+    try:
+        oid = ObjectId(expense_id)
+    except Exception:
+        return jsonify({"error": "Invalid expense ID"}), 400
+
+    data = request.get_json(force=True) or {}
+    update_doc = {
+        "amount": float(data.get("amount", 0)),
+        "category": data.get("category") or "Other",
+        "payment_mode": data.get("payment_mode") or "Cash",
+        "tags": data.get("tags") or [],
+        "remarks": data.get("remarks") or "",
+    }
+    result = expenses.update_one({"_id": oid}, {"$set": update_doc})
+    if result.matched_count == 0:
+        return jsonify({"error": "Expense not found"}), 404
+    return jsonify({"ok": True})
+
+@app.delete("/expenses/<expense_id>")
+def delete_expense(expense_id: str):
+    try:
+        oid = ObjectId(expense_id)
+    except Exception:
+        return jsonify({"error": "Invalid expense ID"}), 400
+
+    result = expenses.delete_one({"_id": oid})
+    if result.deleted_count == 0:
+        return jsonify({"error": "Expense not found"}), 404
+    return jsonify({"ok": True})
+
 @app.get("/expenses/export")
 def export_expenses():
     month = request.args.get("month", "")
@@ -105,14 +137,19 @@ def export_expenses():
     writer = csv.writer(output)
     writer.writerow(["Date", "Category", "Payment Mode", "Amount", "Tags", "Remarks"])
 
+    total_amount = 0
     for item in items:
         date_str = item.get("date").strftime("%Y-%m-%d") if item.get("date") else ""
         category = item.get("category", "")
         payment_mode = item.get("payment_mode", "")
         amount = item.get("amount", 0)
+        total_amount += amount
         tags = ", ".join(item.get("tags", []))
         remarks = item.get("remarks", "")
         writer.writerow([date_str, category, payment_mode, amount, tags, remarks])
+
+    writer.writerow([])
+    writer.writerow(["TOTAL", "", "", total_amount, "", ""])
 
     csv_data = output.getvalue()
     return csv_data, 200, {
@@ -234,4 +271,4 @@ def analytics_timeseries():
     return jsonify(items)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5001")))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")))

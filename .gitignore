@@ -9,7 +9,7 @@
 
 # production
 /build
-path/
+
 # debug
 npm-debug.log*
 yarn-debug.log*

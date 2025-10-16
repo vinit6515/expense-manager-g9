@@ -89,7 +89,7 @@ export function ExportExpenses() {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            CSV includes: Date, Category, Payment Mode, Amount, Tags, and Remarks
+            CSV includes: Date, Category, Payment Mode, Amount, Tags, Remarks, and a Total row at the bottom
           </p>
         </div>
       </CardContent>

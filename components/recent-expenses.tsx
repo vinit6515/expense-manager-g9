@@ -1,12 +1,17 @@
 "use client"
 
-import useSWR from "swr"
+import { useState } from "react"
+import useSWR, { mutate } from "swr"
 import { Card, CardContent } from "@/components/ui/card"
-import { swrFetcher, API_BASE } from "@/lib/api"
+import { Button } from "@/components/ui/button"
+import { swrFetcher, API_BASE, api } from "@/lib/api"
+import { Edit2, Trash2 } from "lucide-react"
 import type { Expense } from "@/lib/types"
+import { EditExpenseModal } from "./edit-expense-modal"
 
 export function RecentExpenses() {
   const { data, isLoading } = useSWR<{ items: Expense[] }>(`${API_BASE}/expenses?limit=10`, swrFetcher)
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
 
   const formatDate = (dateStr: string | undefined) => {
     if (!dateStr) return "—"
@@ -18,6 +23,18 @@ export function RecentExpenses() {
       })
     } catch {
       return "—"
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this expense?")) return
+    try {
+      await api(`/expenses/${id}`, { method: "DELETE" })
+      mutate(`${API_BASE}/expenses?limit=10`)
+      mutate("/stats")
+      mutate("/analytics")
+    } catch (err) {
+      console.error("Delete failed:", err)
     }
   }
 
@@ -38,6 +55,7 @@ export function RecentExpenses() {
                     <th className="px-4 py-3 text-left font-medium">Amount</th>
                     <th className="px-4 py-3 text-left font-medium">Payment Mode</th>
                     <th className="px-4 py-3 text-left font-medium">Tags</th>
+                    <th className="px-4 py-3 text-left font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -48,6 +66,19 @@ export function RecentExpenses() {
                       <td className="px-4 py-3 font-semibold">₹{e.amount.toFixed(2)}</td>
                       <td className="px-4 py-3 text-muted-foreground">{e.payment_mode}</td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">{e.tags?.join(", ") || "—"}</td>
+                      <td className="px-4 py-3 flex gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => setEditingExpense(e)} className="h-8 w-8 p-0">
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(e._id || "")}
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -65,6 +96,18 @@ export function RecentExpenses() {
           )}
         </CardContent>
       </Card>
+      {editingExpense && (
+        <EditExpenseModal
+          expense={editingExpense}
+          onClose={() => setEditingExpense(null)}
+          onSave={() => {
+            setEditingExpense(null)
+            mutate(`${API_BASE}/expenses?limit=10`)
+            mutate("/stats")
+            mutate("/analytics")
+          }}
+        />
+      )}
     </section>
   )
 }
