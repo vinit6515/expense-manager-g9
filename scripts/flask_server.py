@@ -9,11 +9,14 @@ import csv
 from io import StringIO
 from dotenv import load_dotenv
 load_dotenv()
-MONGO_URI = os.environ.get("MONGODB_URI", "mongodb+srv://vinitshah6315:Syncmaster290204@expense-manager.okswoyl.mongodb.net/?retryWrites=true&w=majority&appName=expense-manager")
-DB_NAME = os.environ.get("MONGODB_DB", "expense-manager")
-print("Using MongoDB URI:", MONGO_URI)
-client = MongoClient(MONGO_URI)
-db = client[DB_NAME]
+import certifi
+
+
+uri = "mongodb+srv://vinitshah6315:Syncmaster290204@expense-manager.okswoyl.mongodb.net/?retryWrites=true&w=majority&appName=expense-manager"
+
+client = MongoClient(uri, tls=True, tlsCAFile=certifi.where())
+db = client["expense-manager"]
+
 expenses = db["transactions"]
 incomes = db["incomes"]
 
